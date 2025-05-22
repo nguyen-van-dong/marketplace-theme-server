@@ -6,6 +6,10 @@ import { TemplateModule } from './templates/template.module';
 import { OrderModule } from './orders/order.module';
 import { DownloadModule } from './downloads/download.module';
 import { FileDownloadModule } from './file-download/file-download.module';
+import { CustomMailerModule } from './mailer/mailer.module';
+import { BullModule } from '@nestjs/bull';
+import { MailQueueModule } from './queues/mail-queue.module';
+import { BullDashboardModule } from './bull-dashboard/bull-dashboard.module';
 
 @Module({
   imports: [
@@ -24,11 +28,20 @@ import { FileDownloadModule } from './file-download/file-download.module';
         synchronize: true,
       }),
     }),
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
     AuthModule,
     TemplateModule,
     OrderModule,
     DownloadModule,
     FileDownloadModule,
+    CustomMailerModule,
+    MailQueueModule,
+    BullDashboardModule,
   ],
 })
 export class AppModule { }
