@@ -12,9 +12,8 @@ async function bootstrap() {
       credentials: true,
     },
   });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(new ValidationPipe());
   app.setGlobalPrefix('api');
-
   const bullBoard = app.get(BullDashboardService);
   bullBoard.setupBullBoard(app);
   const configService = app.get(ConfigService);

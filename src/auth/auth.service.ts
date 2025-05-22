@@ -7,25 +7,28 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from 'src/user/user.entity';
-import { MailService } from 'src/mailer/mailer.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserRegisterEvent } from './events/user-register.event';
 import { UserForgotPasswordEvent } from './events/user-forgot-password.event';
 import { generateRandomToken } from 'src/common/helper';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
     private jwtService: JwtService,
-    private readonly mailService: MailService,
     private eventEmitter: EventEmitter2,
+    private config: ConfigService,
   ) { }
 
   async register(dto: RegisterDto) {
     const hash = await bcrypt.hash(dto.password, 10);
-    const user = this.userRepo.create({ ...dto, password: hash });
-
+    const exits = await this.userRepo.countBy({ email: dto.email });
+    if (exits > 0) {
+      throw new BadRequestException('Email already exists');
+    }
+    const user = this.userRepo.create({ ...dto, password: hash, email_verification_token: generateRandomToken() });
     const saved = await this.userRepo.save(user);
 
     const token = this.jwtService.sign(
@@ -40,20 +43,43 @@ export class AuthService {
     return saved;
   }
 
+  async validateUser(email: string, pass: string) {
+    const user = await this.userRepo.findOneBy({ email });
+    if (user && !user.is_verified) {
+      throw new UnauthorizedException('User does not activated.');
+    }
+    if (user && await bcrypt.compare(pass, user.password)) {
+      return user;
+    }
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  async verifyEmailByToken(token: string) {
+    const user = await this.userRepo.findOneBy({ email_verification_token: token });
+    if (!user) throw new BadRequestException('Token is invalid!');
+    if (user.is_verified) {
+      return { ...user, message: 'Account already verified!' };
+    }
+    user.is_verified = true;
+    user.email_verification_token = null;
+    await this.userRepo.save(user);
+
+    return {...user, message: 'Verify account succesfully!' };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOneBy({ email: dto.email });
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Sai email hoặc mật khẩu');
+      throw new UnauthorizedException('Invalid email or password!');
     }
-
     const payload = { sub: user.id, email: user.email, role: user.role };
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, { secret: this.config.get('JWT_SECRET') || 'SECRET_KEY' }),
     };
   }
 
   async getProfile(userId: string) {
-    return this.userRepo.findOneBy({ id: userId });
+    return await this.userRepo.findOneBy({ id: userId });
   }
 
   async forgotPassword(email: string) {
@@ -66,7 +92,7 @@ export class AuthService {
 
     const token = this.jwtService.sign(
       { sub: user.id },
-      { secret: process.env.JWT_SECRET, expiresIn: '15m' },
+      { secret: this.config.get('JWT_SECRET') || 'SECRET_KEY', expiresIn: '15m' },
     );
 
     this.eventEmitter.emit(
@@ -75,36 +101,19 @@ export class AuthService {
     );
   }
 
-  async resetPassword(token: string, newPassword: string) {
-    try {
-      const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET,
-      });
-
-      const user = await this.userRepo.findOneBy({ id: payload.sub });
-      if (!user) throw new Error('User not found');
-
-      user.password = await bcrypt.hash(newPassword, 10);
-      await this.userRepo.save(user);
-      return { message: 'Cập nhật mật khẩu thành công' };
-    } catch (err) {
-      throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
-    }
-  }
-
   async resetPasswordWithToken(token: string, newPassword: string) {
     const user = await this.userRepo.findOneBy({ reset_password_token: token });
 
     if (!user || !user.reset_password_expires || new Date() > user.reset_password_expires) {
-      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
+      throw new BadRequestException('Invalid token or token was expired!');
     }
-  
+
     user.password = await bcrypt.hash(newPassword, 10);
     user.reset_password_token = null;
     user.reset_password_expires = null;
 
     await this.userRepo.save(user);
 
-    return { message: 'Cập nhật mật khẩu thành công 🎉' };
+    return { message: 'Update password successully!' };
   }
 }

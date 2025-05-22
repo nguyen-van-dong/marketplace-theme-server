@@ -20,8 +20,8 @@ export class User {
   @Column({ default: false })
   is_verified: boolean;
 
-  @Column({ nullable: true })
-  email_verification_token: string;
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  email_verification_token: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   reset_password_token: string | null;
