@@ -10,6 +10,7 @@ import { CustomMailerModule } from './mailer/mailer.module';
 import { BullModule } from '@nestjs/bull';
 import { MailQueueModule } from './queues/mail-queue.module';
 import { BullDashboardModule } from './bull-dashboard/bull-dashboard.module';
+import { CategoryModule } from './categories/category.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { BullDashboardModule } from './bull-dashboard/bull-dashboard.module';
       },
     }),
     AuthModule,
+    CategoryModule,
     TemplateModule,
     OrderModule,
     DownloadModule,

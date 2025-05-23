@@ -1,4 +1,5 @@
 // src/templates/template.entity.ts
+import { Category } from 'src/categories/category.entity';
 import { User } from 'src/user/user.entity';
 import {
   Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn
@@ -21,14 +22,14 @@ export class Template {
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column()
-  thumbnail_url: string;
+  @Column({ type: 'varchar', length: 255, nullable: true})
+  thumbnail_url: string | null;
 
-  @Column()
-  preview_url: string;
+  @Column({ type: 'varchar', length: 255, nullable: true})
+  preview_url: string | null;
 
-  @Column()
-  download_path: string;
+  @Column({ type: 'varchar', length: 255, nullable: true})
+  download_path: string | null;
 
   @Column({ type: 'enum', enum: ['draft', 'published'], default: 'draft' })
   status: 'draft' | 'published';
@@ -41,4 +42,10 @@ export class Template {
 
   @ManyToOne(() => User, user => user.id)
   user: User;
+
+  @ManyToOne(() => Category, (category) => category.templates, { eager: true })
+  category: Category;
+
+  @Column()
+  categoryId: string;
 }

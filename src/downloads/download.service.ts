@@ -47,7 +47,7 @@ export class DownloadService {
     return { url: signedUrl, expires_at: expiresAt };
   }
 
-  private signUrl(path: string, expiresAt: Date): string {
+  private signUrl(path: string | null, expiresAt: Date): string {
     const baseUrl = 'https://cdn.mysite.com/templates/'; // Có thể là Cloudflare R2 / S3
     const token = Buffer.from(`${path}:${expiresAt.getTime()}`).toString('base64');
     return `${baseUrl}${path}?token=${token}`;
